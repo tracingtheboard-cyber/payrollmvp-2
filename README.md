@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Payroll MVP - Frontend
+
+A payroll management system built with Next.js, React, Supabase, and Tailwind CSS.
+
+## Features
+
+- **HR Dashboard**: Manage salary inputs, run payroll, view payslips, manage employees
+- **Employee Dashboard**: View and download payslips, apply for leave
+- **Leave Management**: Employee leave requests with approval workflow
+- **Admin Panel**: System user management
+
+## Tech Stack
+
+- Next.js 16.1.1
+- React 19.2.3
+- Supabase (Backend & Auth)
+- Tailwind CSS 4
+- TypeScript
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+
+### Installation
+
+1. Clone the repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd payroll-ui
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables
+Create a `.env.local` file:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server
+```bash
+npm run dev
+```
 
-## Learn More
+5. Open [http://localhost:3000](http://localhost:3000)
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md) for detailed deployment instructions.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Quick Deploy to Vercel
 
-## Deploy on Vercel
+1. Push code to GitHub/GitLab/Bitbucket
+2. Import project in Vercel Dashboard
+3. Add environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy!
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Database Setup
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See SQL files in project root:
+- `create_leave_requests_table.sql` - Leave requests table
+- `add_evidence_url_to_leaves.sql` - Add evidence URL column
+- `add_remark_to_leaves.sql` - Add remark column
+- `setup_leaves_rls_simple.sql` - RLS policies for leaves table
+- `setup_storage_rls.sql` - Storage bucket policies
+
+## Project Structure
+
+```
+app/
+  admin/          # Admin dashboard
+  employee/       # Employee pages
+  hr/            # HR pages
+  login/         # Login page
+  salary/        # Salary input
+  payslips/      # Payslip management
+components/      # Reusable components
+lib/             # Utilities and hooks
+```
+
+## License
+
+Private project
