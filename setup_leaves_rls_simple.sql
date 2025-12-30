@@ -39,3 +39,4 @@ CREATE POLICY "Allow employees to insert own leaves"
     )
   );
 
+

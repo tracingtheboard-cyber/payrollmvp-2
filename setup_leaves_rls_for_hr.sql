@@ -71,3 +71,4 @@ CREATE POLICY "Employees can insert own leave requests"
     )
   );
 
+

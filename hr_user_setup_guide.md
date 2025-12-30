@@ -84,3 +84,4 @@ WHERE id = 'USER_ID_HERE';
 3. 测试登录，验证跳转到 HR dashboard
 4. 如果需要，使用 **方法 3** 更新用户元数据
 
+

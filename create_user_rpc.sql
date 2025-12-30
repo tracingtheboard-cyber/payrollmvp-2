@@ -10,3 +10,4 @@
 -- For now, we'll implement a frontend solution using signUp API
 -- Make sure to disable email confirmation in Supabase Dashboard > Authentication > Settings
 
+

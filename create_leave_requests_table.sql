@@ -58,3 +58,4 @@ CREATE POLICY "HR can update leave requests"
 -- Bucket name: leave-evidence
 -- Public: Yes (or set up proper RLS policies)
 
+

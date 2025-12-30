@@ -43,3 +43,4 @@ WHERE id = 'USER_ID_HERE';
 -- 3. The login logic checks: if user is in crews table = employee, else = HR
 -- 4. Admin users are identified by email containing 'admin' or user_metadata.role = 'admin'
 
+
