@@ -35,6 +35,8 @@ export default function EmployeeSidebar() {
   const navItems = [
     { href: '/employee/payslips', label: 'Payslips' },
     { href: '/employee/leave', label: 'Leave' },
+    { href: '/employee/policy', label: 'policy' },
+    { href: '/employee/notice', label: 'notice' },
   ]
 
   async function handleLogout() {

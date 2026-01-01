@@ -31,11 +31,13 @@ export default function Sidebar() {
 
   // Base navigation items (HR users see these)
   const baseNavItems = [
-    { href: '/salary', label: 'Salary' },
+    { href: '/salary', label: 'monthlysalary' },
     { href: '/run', label: 'Run Payroll' },
-    { href: '/payslips', label: 'Payslips' },
+    { href: '/payslips', label: 'report' },
     { href: '/hr/leave', label: 'Leave Management' },
     { href: '/crews', label: 'Employees' },
+    { href: '/hr/policy', label: 'Policy' },
+    { href: '/hr/notice', label: 'Notice' },
   ]
 
   // Admin users see additional Admin link

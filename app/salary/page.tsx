@@ -45,17 +45,24 @@ export default function SalaryPage() {
       map[i.crew_id] = i
     })
 
-    const merged = (crews || []).map(c => ({
-      crew_id: c.id,
-      name: c.name,
-      basic: c.basic_salary,
-      allowance: map[c.id]?.allowance || 0,
-      overtime: map[c.id]?.overtime || 0,
-      bonus: map[c.id]?.bonus || 0,
-      leave: map[c.id]?.unutilised_leave_pay || 0,
-      unpaid: map[c.id]?.unpaid_leave_deduction || 0,
-      advance: map[c.id]?.advance_deduction || 0
-    }))
+    const merged = (crews || []).map(c => {
+      const item = map[c.id]
+      // 合并 leave pay (正数) 和 unpaid deduction (负数)
+      // 如果 unutilised_leave_pay > 0，显示正数；如果 unpaid_leave_deduction > 0，显示负数
+      const leaveAdjustment = (item?.unutilised_leave_pay || 0) - (item?.unpaid_leave_deduction || 0)
+      
+      return {
+        crew_id: c.id,
+        name: c.name,
+        basic: c.basic_salary,
+        allowance: item?.allowance || 0,
+        overtime: item?.overtime || 0,
+        bonus: item?.bonus || 0,
+        leave_adjustment: leaveAdjustment,
+        advance: item?.advance_deduction || 0,
+        adjustment: item?.adjustment || 0
+      }
+    })
 
     setRows(merged)
     setLoading(false)
@@ -63,21 +70,32 @@ export default function SalaryPage() {
 
   function updateRow(index: number, field: string, value: string) {
     const copy = [...rows]
-    copy[index][field] = Number(value)
+    // 允许负数，空字符串处理为0
+    const numValue = value === '' ? 0 : Number(value)
+    copy[index][field] = isNaN(numValue) ? 0 : numValue
     setRows(copy)
   }
 
   async function save() {
-    const payload = rows.map(r => ({
-      crew_id: r.crew_id,
-      month,
-      allowance: r.allowance,
-      overtime: r.overtime,
-      bonus: r.bonus,
-      unutilised_leave_pay: r.leave,
-      unpaid_leave_deduction: r.unpaid,
-      advance_deduction: r.advance
-    }))
+    const payload = rows.map(r => {
+      // 根据 leave_adjustment 的值，拆分到两个字段
+      // 正数存到 unutilised_leave_pay，负数（取绝对值）存到 unpaid_leave_deduction
+      const leaveAdjustment = r.leave_adjustment || 0
+      const unutilised_leave_pay = leaveAdjustment > 0 ? leaveAdjustment : 0
+      const unpaid_leave_deduction = leaveAdjustment < 0 ? Math.abs(leaveAdjustment) : 0
+      
+      return {
+        crew_id: r.crew_id,
+        month,
+        allowance: r.allowance || 0,
+        overtime: r.overtime || 0,
+        bonus: r.bonus || 0,
+        unutilised_leave_pay,
+        unpaid_leave_deduction,
+        advance_deduction: r.advance || 0,
+        adjustment: r.adjustment || 0
+      }
+    })
 
     const { error } = await supabase
       .from('salary_items')
@@ -147,74 +165,50 @@ Net Pay: ${data[0].net_pay}`
         </div>
       </div>
 
-      <div className="table-wrapper">
-        <table border={1} cellPadding={4}>
+      <div className="table-wrapper" style={{ marginLeft: 0, marginRight: 'auto' }}>
+        <table border={0} cellPadding={0} cellSpacing={0} style={{ fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Basic</th>
-            <th>Allowance</th>
-            <th>OT</th>
-            <th>Bonus</th>
-            <th>Leave Pay</th>
-            <th>Unpaid</th>
-            <th>Advance</th>
-            <th>Action</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Name</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Basic</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Allowance</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>OT</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Bonus</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Leave Pay/Unpaid Leave</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Advance</th>
+            <th style={{ padding: '3px 4px', textAlign: 'left' }}>Adjustment</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.crew_id}>
-              <td>{r.name}</td>
-              <td>{r.basic}</td>
-              <td><input value={r.allowance} onChange={e => updateRow(i,'allowance',e.target.value)} /></td>
-              <td><input value={r.overtime} onChange={e => updateRow(i,'overtime',e.target.value)} /></td>
-              <td><input value={r.bonus} onChange={e => updateRow(i,'bonus',e.target.value)} /></td>
-              <td><input value={r.leave} onChange={e => updateRow(i,'leave',e.target.value)} /></td>
-              <td><input value={r.unpaid} onChange={e => updateRow(i,'unpaid',e.target.value)} /></td>
-              <td><input value={r.advance} onChange={e => updateRow(i,'advance',e.target.value)} /></td>
-              <td>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button 
-                    onClick={() => preview(r.crew_id)}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: 12,
-                      background: '#2563eb',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Preview
-                  </button>
-                  {hasPayslips.has(r.crew_id) && (
-                    <button 
-                      onClick={() => viewPayslip(r.crew_id)}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: 12,
-                        background: '#059669',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      View Payslip
-                    </button>
-                  )}
-                </div>
-              </td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}>{r.name}</td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}>{r.basic}</td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}><input type="number" step="any" value={r.allowance || ''} onChange={e => updateRow(i,'allowance',e.target.value)} style={{ width: '66.67%', padding: '2px 3px', fontSize: '13px', textAlign: 'left' }} /></td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}><input type="number" step="any" value={r.overtime || ''} onChange={e => updateRow(i,'overtime',e.target.value)} style={{ width: '66.67%', padding: '2px 3px', fontSize: '13px', textAlign: 'left' }} /></td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}><input type="number" step="any" value={r.bonus || ''} onChange={e => updateRow(i,'bonus',e.target.value)} style={{ width: '66.67%', padding: '2px 3px', fontSize: '13px', textAlign: 'left' }} /></td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}><input type="number" step="any" value={r.leave_adjustment || ''} onChange={e => updateRow(i,'leave_adjustment',e.target.value)} style={{ width: '66.67%', padding: '2px 3px', fontSize: '13px', textAlign: 'left' }} /></td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}><input type="number" step="any" value={r.advance || ''} onChange={e => updateRow(i,'advance',e.target.value)} style={{ width: '66.67%', padding: '2px 3px', fontSize: '13px', textAlign: 'left' }} /></td>
+              <td style={{ padding: '2px 4px', textAlign: 'left' }}><input type="number" step="any" value={r.adjustment || ''} onChange={e => updateRow(i,'adjustment',e.target.value)} style={{ width: '66.67%', padding: '2px 3px', fontSize: '13px', textAlign: 'left' }} /></td>
             </tr>
           ))}
+          <tr style={{ fontWeight: 'bold', backgroundColor: '#f3f4f6' }}>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>Total</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.basic || 0), 0).toFixed(2)}</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.allowance || 0), 0).toFixed(2)}</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.overtime || 0), 0).toFixed(2)}</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.bonus || 0), 0).toFixed(2)}</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.leave_adjustment || 0), 0).toFixed(2)}</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.advance || 0), 0).toFixed(2)}</td>
+            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{rows.reduce((sum, r) => sum + (r.adjustment || 0), 0).toFixed(2)}</td>
+          </tr>
         </tbody>
       </table>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-        <button onClick={runPayroll}>Run Payroll</button>
+        <button onClick={runPayroll}>Calculate</button>
+        <button onClick={runPayroll}>Close Month</button>
         <button onClick={save}>Save Month</button>
       </div>
       {runStatus && (
