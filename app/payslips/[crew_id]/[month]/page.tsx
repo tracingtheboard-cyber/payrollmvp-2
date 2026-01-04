@@ -149,8 +149,7 @@ export default function PayslipPrintPage() {
             unit: 'mm', 
             format: 'a4', 
             orientation: 'portrait'
-          },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: '.no-print' }
+          }
         })
         .from(element)
         .toPdf()
