@@ -148,8 +148,7 @@ export default function PayslipPrintPage() {
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'portrait',
-            compress: true
+            orientation: 'portrait'
           },
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: '.no-print' }
         })
