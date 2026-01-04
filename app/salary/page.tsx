@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useMonth } from '@/lib/useMonth'
-import MonthSelector from '@/components/MonthSelector'
 
 export default function SalaryPage() {
   const [month, setMonth] = useMonth()
@@ -22,16 +21,22 @@ export default function SalaryPage() {
     // 1. load crews
     const { data: crews } = await supabase
       .from('crews')
-      .select('id,name,basic_salary')
+      .select('id,name')
       .order('name')
 
-    // 2. load salary_items for this month
+    // 2. load crew_compensation (active records)
+    const { data: compensations } = await supabase
+      .from('crew_compensation')
+      .select('crew_id,basic_salary')
+      .eq('is_active', true)
+
+    // 3. load salary_items for this month
     const { data: items } = await supabase
       .from('salary_items')
       .select('*')
       .eq('month', month)
 
-    // 3. check if payslips exist for this month
+    // 4. check if payslips exist for this month
     const { data: payslips } = await supabase
       .from('payslip_detail_view')
       .select('crew_id')
@@ -40,13 +45,19 @@ export default function SalaryPage() {
     const payslipSet = new Set((payslips || []).map((p: any) => p.crew_id))
     setHasPayslips(payslipSet)
 
-    const map: any = {}
+    const compensationMap: any = {}
+    ;(compensations || []).forEach(cc => {
+      compensationMap[cc.crew_id] = cc
+    })
+
+    const itemMap: any = {}
     ;(items || []).forEach(i => {
-      map[i.crew_id] = i
+      itemMap[i.crew_id] = i
     })
 
     const merged = (crews || []).map(c => {
-      const item = map[c.id]
+      const compensation = compensationMap[c.id]
+      const item = itemMap[c.id]
       // 合并 leave pay (正数) 和 unpaid deduction (负数)
       // 如果 unutilised_leave_pay > 0，显示正数；如果 unpaid_leave_deduction > 0，显示负数
       const leaveAdjustment = (item?.unutilised_leave_pay || 0) - (item?.unpaid_leave_deduction || 0)
@@ -54,7 +65,7 @@ export default function SalaryPage() {
       return {
         crew_id: c.id,
         name: c.name,
-        basic: c.basic_salary,
+        basic: compensation?.basic_salary || 0,
         allowance: item?.allowance || 0,
         overtime: item?.overtime || 0,
         bonus: item?.bonus || 0,
@@ -155,13 +166,36 @@ Net Pay: ${data[0].net_pay}`
 
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>
 
+  // Generate 2026 year months
+  const months2026 = Array.from({ length: 12 }, (_, i) => {
+    const monthNum = String(i + 1).padStart(2, '0')
+    return `2026-${monthNum}`
+  })
+
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h1>Salary Input</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <label>Month:</label>
-          <MonthSelector value={month} onChange={setMonth} />
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              fontSize: 14,
+              borderRadius: 6,
+              border: '1px solid #ddd',
+              background: 'white',
+              cursor: 'pointer'
+            }}
+          >
+            {months2026.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

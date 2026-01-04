@@ -49,12 +49,29 @@ export default function AdminPage() {
       // Load all crews (employees)
       const { data: crews } = await supabase
         .from('crews')
-        .select('id, name, nric, basic_salary, user_id')
+        .select('id, name, nric, user_id')
         .order('name')
+
+      // Load active crew_compensation records
+      const { data: compensations } = await supabase
+        .from('crew_compensation')
+        .select('crew_id, basic_salary')
+        .eq('is_active', true)
+
+      // Merge crews with compensation data
+      const compensationMap: any = {}
+      ;(compensations || []).forEach(cc => {
+        compensationMap[cc.crew_id] = cc
+      })
+
+      const usersWithSalary = (crews || []).map(c => ({
+        ...c,
+        basic_salary: compensationMap[c.id]?.basic_salary || null
+      }))
 
       // Note: We can't directly query auth.users from frontend
       // This is a simplified view showing crews with user_id
-      setUsers(crews || [])
+      setUsers(usersWithSalary)
     } catch (error) {
       console.error('Error loading users:', error)
     }
@@ -100,22 +117,38 @@ export default function AdminPage() {
         return
       }
 
-      // If creating employee, also create crew record
+      // If creating employee, also create crew record and crew_compensation
       if (userRole === 'employee' && authData.user.id) {
-        const { error: crewError } = await supabase
+        // First create crew record
+        const { data: crewData, error: crewError } = await supabase
           .from('crews')
           .insert({
             user_id: authData.user.id,
             name: userName,
-            nric: userNric,
-            basic_salary: Number(userBasicSalary)
+            nric: userNric
           })
+          .select('id')
+          .single()
 
         if (crewError) {
           console.error('Error creating crew record:', crewError)
           alert('User created but failed to create employee record: ' + crewError.message)
-        } else {
-          alert('User and employee record created successfully')
+        } else if (crewData?.id) {
+          // Then create crew_compensation record
+          const { error: compError } = await supabase
+            .from('crew_compensation')
+            .insert({
+              crew_id: crewData.id,
+              basic_salary: Number(userBasicSalary),
+              is_active: true
+            })
+
+          if (compError) {
+            console.error('Error creating compensation record:', compError)
+            alert('User and employee created but failed to create compensation record: ' + compError.message)
+          } else {
+            alert('User and employee record created successfully')
+          }
         }
       } else if (userRole === 'hr') {
         alert('HR user created successfully')
