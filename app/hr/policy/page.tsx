@@ -182,7 +182,7 @@ export default function HrPolicyPage() {
         if (editingPolicy?.file_url) {
           // Extract file path from URL
           const urlParts = editingPolicy.file_url.split('/')
-          const fileIndex = urlParts.findIndex(part => part === 'policies')
+          const fileIndex = urlParts.findIndex((part: string) => part === 'policies')
           if (fileIndex !== -1) {
             const oldFilePath = urlParts.slice(fileIndex).join('/')
             await supabase.storage
@@ -250,7 +250,7 @@ export default function HrPolicyPage() {
       if (policy.file_url) {
         // Extract file path from URL
         const urlParts = policy.file_url.split('/')
-        const fileIndex = urlParts.findIndex(part => part === 'policies')
+        const fileIndex = urlParts.findIndex((part: string) => part === 'policies')
         if (fileIndex !== -1) {
           const filePath = urlParts.slice(fileIndex).join('/')
           await supabase.storage
