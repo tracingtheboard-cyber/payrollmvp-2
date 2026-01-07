@@ -8,6 +8,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [showUserForm, setShowUserForm] = useState(false)
   const [users, setUsers] = useState<any[]>([])
+  const [editingCrewId, setEditingCrewId] = useState<string | null>(null)
   
   // User creation form fields
   const [userEmail, setUserEmail] = useState('')
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [userNric, setUserNric] = useState('')
   const [userBasicSalary, setUserBasicSalary] = useState('')
   const [creating, setCreating] = useState(false)
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     loadStats()
@@ -74,6 +76,151 @@ export default function AdminPage() {
       setUsers(usersWithSalary)
     } catch (error) {
       console.error('Error loading users:', error)
+    }
+  }
+
+  function resetForm() {
+    setUserEmail('')
+    setUserPassword('')
+    setUserRole('employee')
+    setUserName('')
+    setUserNric('')
+    setUserBasicSalary('')
+    setEditingCrewId(null)
+  }
+
+  async function loadEmployeeForEdit(crewId: string) {
+    try {
+      // Load crew data
+      const { data: crewData } = await supabase
+        .from('crews')
+        .select('*')
+        .eq('id', crewId)
+        .single()
+
+      // Load active compensation
+      const { data: compensationData } = await supabase
+        .from('crew_compensation')
+        .select('basic_salary')
+        .eq('crew_id', crewId)
+        .eq('is_active', true)
+        .single()
+
+      if (crewData) {
+        setUserName(crewData.name || '')
+        setUserNric(crewData.nric || '')
+        setUserBasicSalary(compensationData?.basic_salary?.toString() || '')
+        setEditingCrewId(crewId)
+        setShowUserForm(true)
+        setUserRole('employee')
+      }
+    } catch (error) {
+      console.error('Error loading employee:', error)
+      alert('Error loading employee data')
+    }
+  }
+
+  async function updateEmployee() {
+    if (!editingCrewId) return
+
+    if (!userName || !userNric || !userBasicSalary) {
+      alert('Please fill in all employee fields')
+      return
+    }
+
+    setUpdating(true)
+
+    try {
+      // Update crew record
+      const { error: crewError } = await supabase
+        .from('crews')
+        .update({
+          name: userName,
+          nric: userNric
+        })
+        .eq('id', editingCrewId)
+
+      if (crewError) {
+        alert('Error updating employee: ' + crewError.message)
+        setUpdating(false)
+        return
+      }
+
+      // Get current active compensation
+      const { data: currentComp } = await supabase
+        .from('crew_compensation')
+        .select('id, basic_salary')
+        .eq('crew_id', editingCrewId)
+        .eq('is_active', true)
+        .single()
+
+      const newSalary = Number(userBasicSalary)
+
+      // If salary changed, create new compensation record and deactivate old one
+      if (currentComp && currentComp.basic_salary !== newSalary) {
+        // Deactivate old record
+        await supabase
+          .from('crew_compensation')
+          .update({ is_active: false })
+          .eq('id', currentComp.id)
+
+        // Create new compensation record
+        const effectiveFrom = new Date().toISOString().split('T')[0]
+        const { error: compError } = await supabase
+          .from('crew_compensation')
+          .insert({
+            crew_id: editingCrewId,
+            basic_salary: newSalary,
+            is_active: true,
+            effective_from: effectiveFrom
+          })
+
+        if (compError) {
+          alert('Employee updated but failed to update compensation: ' + compError.message)
+        } else {
+          alert('Employee updated successfully')
+        }
+      } else if (!currentComp) {
+        // No compensation record exists, create one
+        const effectiveFrom = new Date().toISOString().split('T')[0]
+        const { error: compError } = await supabase
+          .from('crew_compensation')
+          .insert({
+            crew_id: editingCrewId,
+            basic_salary: newSalary,
+            is_active: true,
+            effective_from: effectiveFrom
+          })
+
+        if (compError) {
+          alert('Employee updated but failed to create compensation: ' + compError.message)
+        } else {
+          alert('Employee updated successfully')
+        }
+      } else {
+        // Salary unchanged, just update the record
+        const { error: compError } = await supabase
+          .from('crew_compensation')
+          .update({ basic_salary: newSalary })
+          .eq('id', currentComp.id)
+
+        if (compError) {
+          alert('Employee updated but failed to update compensation: ' + compError.message)
+        } else {
+          alert('Employee updated successfully')
+        }
+      }
+
+      // Reset form and reload
+      resetForm()
+      setShowUserForm(false)
+      loadUsers()
+      loadStats()
+    } catch (error: any) {
+      console.error('Error updating employee:', error)
+      alert('Error updating employee: ' + (error.message || 'Unknown error'))
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -135,12 +282,23 @@ export default function AdminPage() {
           alert('User created but failed to create employee record: ' + crewError.message)
         } else if (crewData?.id) {
           // Then create crew_compensation record
+          // Use current date as effective_from since we don't have hire_date in admin form
+          const now = new Date()
+          const effectiveFrom = now.toISOString().split('T')[0] // YYYY-MM-DD format
+          
+          if (!effectiveFrom || effectiveFrom.length !== 10) {
+            alert('Error: Failed to generate effective date')
+            setCreating(false)
+            return
+          }
+          
           const { error: compError } = await supabase
             .from('crew_compensation')
             .insert({
               crew_id: crewData.id,
               basic_salary: Number(userBasicSalary),
-              is_active: true
+              is_active: true,
+              effective_from: effectiveFrom
             })
 
           if (compError) {
@@ -155,12 +313,7 @@ export default function AdminPage() {
       }
 
       // Reset form
-      setUserEmail('')
-      setUserPassword('')
-      setUserRole('employee')
-      setUserName('')
-      setUserNric('')
-      setUserBasicSalary('')
+      resetForm()
       setShowUserForm(false)
 
       // Reload data
@@ -214,73 +367,79 @@ export default function AdminPage() {
           marginBottom: 24,
           maxWidth: 600
         }}>
-          <h2 style={{ marginTop: 0, marginBottom: 20 }}>Create System User</h2>
+          <h2 style={{ marginTop: 0, marginBottom: 20 }}>
+            {editingCrewId ? 'Edit Employee' : 'Create System User'}
+          </h2>
           
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
-              User Role *
-            </label>
-            <select
-              value={userRole}
-              onChange={(e) => setUserRole(e.target.value as 'hr' | 'employee')}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                fontSize: 14,
-                border: '2px solid #e5e7eb',
-                borderRadius: 8,
-                background: 'white',
-                cursor: 'pointer',
-                boxSizing: 'border-box'
-              }}
-            >
-              <option value="hr">HR</option>
-              <option value="employee">Employee</option>
-            </select>
-          </div>
+          {!editingCrewId && (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+                  User Role *
+                </label>
+                <select
+                  value={userRole}
+                  onChange={(e) => setUserRole(e.target.value as 'hr' | 'employee')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: 14,
+                    border: '2px solid #e5e7eb',
+                    borderRadius: 8,
+                    background: 'white',
+                    cursor: 'pointer',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <option value="hr">HR</option>
+                  <option value="employee">Employee</option>
+                </select>
+              </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
-                Email *
-              </label>
-              <input
-                type="email"
-                value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="user@example.com"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  fontSize: 14,
-                  border: '2px solid #e5e7eb',
-                  borderRadius: 8,
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
-                Password *
-              </label>
-              <input
-                type="password"
-                value={userPassword}
-                onChange={(e) => setUserPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  fontSize: 14,
-                  border: '2px solid #e5e7eb',
-                  borderRadius: 8,
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: 14,
+                      border: '2px solid #e5e7eb',
+                      borderRadius: 8,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={userPassword}
+                    onChange={(e) => setUserPassword(e.target.value)}
+                    placeholder="Minimum 6 characters"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: 14,
+                      border: '2px solid #e5e7eb',
+                      borderRadius: 8,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
-          {userRole === 'employee' && (
+          {(userRole === 'employee' || editingCrewId) && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
@@ -346,7 +505,10 @@ export default function AdminPage() {
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button
-              onClick={() => setShowUserForm(false)}
+              onClick={() => {
+                resetForm()
+                setShowUserForm(false)
+              }}
               style={{
                 padding: '10px 20px',
                 background: '#e5e7eb',
@@ -360,22 +522,41 @@ export default function AdminPage() {
             >
               Cancel
             </button>
-            <button
-              onClick={createUser}
-              disabled={creating}
-              style={{
-                padding: '10px 20px',
-                background: creating ? '#9ca3af' : '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                cursor: creating ? 'not-allowed' : 'pointer',
-                fontSize: 14,
-                fontWeight: 500
-              }}
-            >
-              {creating ? 'Creating...' : 'Create User'}
-            </button>
+            {editingCrewId ? (
+              <button
+                onClick={updateEmployee}
+                disabled={updating}
+                style={{
+                  padding: '10px 20px',
+                  background: updating ? '#9ca3af' : '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: updating ? 'not-allowed' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 500
+                }}
+              >
+                {updating ? 'Updating...' : 'Update Employee'}
+              </button>
+            ) : (
+              <button
+                onClick={createUser}
+                disabled={creating}
+                style={{
+                  padding: '10px 20px',
+                  background: creating ? '#9ca3af' : '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: creating ? 'not-allowed' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 500
+                }}
+              >
+                {creating ? 'Creating...' : 'Create User'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -454,6 +635,7 @@ export default function AdminPage() {
                   <th>Basic Salary</th>
                   <th>Role</th>
                   <th>Has Account</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -479,6 +661,25 @@ export default function AdminPage() {
                         <span style={{ color: '#059669', fontSize: 12 }}>✓ Yes</span>
                       ) : (
                         <span style={{ color: '#9ca3af', fontSize: 12 }}>No</span>
+                      )}
+                    </td>
+                    <td>
+                      {user.user_id && (
+                        <button
+                          onClick={() => loadEmployeeForEdit(user.id)}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            fontWeight: 500
+                          }}
+                        >
+                          Edit
+                        </button>
                       )}
                     </td>
                   </tr>

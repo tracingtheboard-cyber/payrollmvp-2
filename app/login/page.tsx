@@ -40,7 +40,6 @@ export default function LoginPage() {
                     data.user.user_metadata?.is_admin === true
 
     if (isAdmin) {
-      console.log('Admin user detected, redirecting to /admin')
       router.push('/admin')
       setLoading(false)
       return
@@ -52,7 +51,6 @@ export default function LoginPage() {
 
     if (isHR) {
       // User is HR (may also be employee, but prioritize HR dashboard)
-      console.log('HR user detected, redirecting to /hr/dashboard')
       router.push('/hr/dashboard')
       setLoading(false)
       return
@@ -67,14 +65,12 @@ export default function LoginPage() {
 
     if (crew) {
       // User is an employee only (not HR)
-      console.log('Employee user detected, redirecting to /employee/dashboard')
       router.push('/employee/dashboard')
       setLoading(false)
       return
     }
 
     // 4. Default to HR dashboard (user not in crews table and no explicit role)
-    console.log('HR user detected (default), redirecting to /hr/dashboard')
     router.push('/hr/dashboard')
     setLoading(false)
   }

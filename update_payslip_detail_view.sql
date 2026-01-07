@@ -42,3 +42,8 @@ LEFT JOIN salary_items si ON c.id = si.crew_id;
 -- you may need to adjust this SQL accordingly. 
 -- Check your original view definition and update the SELECT statement above.
 
+
+
+
+
+

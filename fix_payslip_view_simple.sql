@@ -44,3 +44,8 @@ LEFT JOIN payslips p ON c.id = p.crew_id AND si.month = p.month;
 -- Please run "SELECT pg_get_viewdef('payslip_detail_view', true);" FIRST to see your actual view,
 -- then modify it by replacing "FROM crews" with "FROM crews_current"
 
+
+
+
+
+

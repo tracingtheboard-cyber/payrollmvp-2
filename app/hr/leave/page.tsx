@@ -52,12 +52,8 @@ export default function HrLeavePage() {
         return
       }
 
-      console.log('Loaded leaves:', leavesData) // Debug log
-
       // Load crew information for each leave request
       const crewIds = [...new Set((leavesData || []).map((l: any) => l.crew_id).filter(Boolean))]
-      
-      console.log('Crew IDs:', crewIds) // Debug log
       
       let crewsMap: any = {}
       if (crewIds.length > 0) {
@@ -69,7 +65,6 @@ export default function HrLeavePage() {
         if (crewsError) {
           console.error('Error loading crews:', crewsError)
         } else {
-          console.log('Loaded crews:', crewsData) // Debug log
           if (crewsData) {
             crewsData.forEach((c: any) => {
               crewsMap[c.id] = c
@@ -84,7 +79,6 @@ export default function HrLeavePage() {
         crews: leave.crew_id ? crewsMap[leave.crew_id] : null
       }))
 
-      console.log('Merged data:', mergedData) // Debug log
       setLeaveRequests(mergedData)
     } catch (error) {
       console.error('Error loading data:', error)

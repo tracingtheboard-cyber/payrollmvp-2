@@ -38,3 +38,8 @@ LEFT JOIN salary_items si ON c.id = si.crew_id;
 -- 3. All references to c.basic_salary will then automatically work
 -- 4. No need to change field names or frontend logic
 
+
+
+
+
+

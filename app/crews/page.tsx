@@ -127,12 +127,15 @@ export default function CrewsPage() {
 
     // Then create crew_compensation record if basic salary is provided
     if (crewResult?.id && basicSalary) {
+      // Use hire_date if available, otherwise use current date
+      const effectiveFrom = hireDate || new Date().toISOString().split('T')[0] // YYYY-MM-DD format
       const { error: compError } = await supabase
         .from('crew_compensation')
         .insert({
           crew_id: crewResult.id,
           basic_salary: Number(basicSalary),
-          is_active: true
+          is_active: true,
+          effective_from: effectiveFrom
         })
 
       if (compError) {

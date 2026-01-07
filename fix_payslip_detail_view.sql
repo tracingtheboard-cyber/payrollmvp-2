@@ -49,3 +49,8 @@ LEFT JOIN salary_items si ON c.id = si.crew_id;
 -- If the error persists, check your database functions (run_payroll, run_payroll_preview)
 -- as they may also reference crews.basic_salary
 
+
+
+
+
+
